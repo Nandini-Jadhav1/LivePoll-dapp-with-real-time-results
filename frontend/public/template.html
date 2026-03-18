@@ -1,0 +1,783 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>StarVote</title>
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500;700&family=Playfair+Display:wght@700;900&display=swap" rel="stylesheet"/>
+<style>
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+
+:root{
+  --ink:#0d0d0d;
+  --paper:#f0ede6;
+  --cream:#faf8f3;
+  --red:#c0392b;
+  --teal:#0e7c7b;
+  --amber:#e67e22;
+  --border:#d4cec2;
+  --muted:#8a8070;
+}
+
+html{scroll-behavior:smooth}
+body{
+  font-family:'Space Grotesk',sans-serif;
+  background:var(--paper);
+  color:var(--ink);
+  min-height:100vh;
+  overflow-x:hidden;
+}
+
+/* ===== TICKER BAR ===== */
+.ticker-wrap{
+  background:var(--ink);
+  color:var(--paper);
+  padding:8px 0;
+  overflow:hidden;
+  white-space:nowrap;
+}
+.ticker-track{
+  display:inline-block;
+  animation:ticker 22s linear infinite;
+}
+.ticker-track span{
+  font-family:'JetBrains Mono',monospace;
+  font-size:0.72rem;
+  letter-spacing:0.08em;
+  padding:0 36px;
+  opacity:0.7;
+}
+.ticker-track span.highlight{color:#f5c842;opacity:1;}
+@keyframes ticker{from{transform:translateX(0)}to{transform:translateX(-50%)}}
+
+/* ===== NAV ===== */
+nav{
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+  padding:18px 48px;
+  border-bottom:2px solid var(--ink);
+  background:var(--cream);
+}
+.logo{
+  font-family:'Playfair Display',serif;
+  font-size:1.8rem;
+  font-weight:900;
+  letter-spacing:-0.02em;
+  display:flex;align-items:center;gap:6px;
+}
+.logo em{font-style:normal;color:var(--red);}
+.logo-sup{
+  font-family:'JetBrains Mono',monospace;
+  font-size:0.55rem;
+  background:var(--red);color:#fff;
+  padding:2px 6px;border-radius:3px;
+  margin-left:4px;
+  vertical-align:super;
+  letter-spacing:0.06em;
+}
+
+.nav-center{
+  display:flex;align-items:center;gap:8px;
+  font-family:'JetBrains Mono',monospace;
+  font-size:0.7rem;
+}
+.pill{
+  border:1.5px solid var(--ink);
+  padding:5px 14px;border-radius:99px;
+  letter-spacing:0.06em;
+  cursor:pointer;
+  transition:all 0.15s;
+}
+.pill:hover,.pill.active{background:var(--ink);color:var(--paper);}
+.pill.red-pill{border-color:var(--red);color:var(--red);}
+.pill.red-pill:hover{background:var(--red);color:#fff;}
+
+.nav-right{
+  display:flex;align-items:center;gap:14px;
+  font-size:0.8rem;
+  font-family:'JetBrains Mono',monospace;
+}
+.net-dot{
+  width:8px;height:8px;background:var(--teal);border-radius:50%;
+  box-shadow:0 0 0 3px rgba(14,124,123,0.2);
+  animation:glow 2s ease-in-out infinite;
+}
+@keyframes glow{0%,100%{box-shadow:0 0 0 3px rgba(14,124,123,0.2)}50%{box-shadow:0 0 0 6px rgba(14,124,123,0.08)}}
+#walletBtn{
+  background:var(--ink);color:var(--paper);
+  border:none;padding:8px 20px;
+  font-family:'JetBrains Mono',monospace;
+  font-size:0.72rem;letter-spacing:0.06em;
+  cursor:pointer;border-radius:6px;
+  transition:all 0.2s;
+}
+#walletBtn:hover{background:var(--red);}
+
+/* ===== HERO SECTION — full width banner ===== */
+.hero{
+  position:relative;
+  background:var(--ink);
+  color:var(--paper);
+  padding:56px 48px 48px;
+  overflow:hidden;
+  display:grid;
+  grid-template-columns:1fr 1fr;
+  gap:40px;
+  align-items:center;
+}
+.hero::before{
+  content:'★';
+  position:absolute;right:-60px;top:-80px;
+  font-size:28rem;
+  opacity:0.04;
+  font-family:'Playfair Display',serif;
+  line-height:1;
+  pointer-events:none;
+}
+
+.hero-left{}
+.hero-kicker{
+  font-family:'JetBrains Mono',monospace;
+  font-size:0.68rem;
+  letter-spacing:0.16em;
+  text-transform:uppercase;
+  color:#f5c842;
+  margin-bottom:16px;
+  display:flex;align-items:center;gap:10px;
+}
+.live-dot{
+  width:7px;height:7px;background:#f5c842;border-radius:50%;
+  animation:pulse 1.4s ease-in-out infinite;
+}
+@keyframes pulse{0%,100%{opacity:1;transform:scale(1)}50%{opacity:0.4;transform:scale(1.5)}}
+
+.hero-title{
+  font-family:'Playfair Display',serif;
+  font-size:2.8rem;
+  font-weight:900;
+  line-height:1.1;
+  letter-spacing:-0.03em;
+  margin-bottom:24px;
+}
+.hero-meta{
+  display:flex;gap:24px;
+  font-family:'JetBrains Mono',monospace;
+  font-size:0.7rem;
+  color:rgba(240,237,230,0.55);
+}
+.hero-meta strong{color:var(--paper);}
+
+/* VOTE OPTIONS — right column */
+.hero-vote{
+  display:flex;flex-direction:column;gap:10px;
+}
+.hero-vote-label{
+  font-family:'JetBrains Mono',monospace;
+  font-size:0.65rem;
+  letter-spacing:0.12em;
+  text-transform:uppercase;
+  color:rgba(240,237,230,0.4);
+  margin-bottom:4px;
+}
+
+.opt-card{
+  border:1.5px solid rgba(240,237,230,0.15);
+  border-radius:10px;
+  padding:14px 18px;
+  cursor:pointer;
+  transition:all 0.2s;
+  display:flex;align-items:center;gap:14px;
+  background:rgba(255,255,255,0.04);
+}
+.opt-card:hover{border-color:rgba(245,200,66,0.5);background:rgba(245,200,66,0.06);}
+.opt-card.selected{border-color:#f5c842;background:rgba(245,200,66,0.1);}
+.opt-num{
+  font-family:'JetBrains Mono',monospace;
+  font-size:0.65rem;
+  width:22px;height:22px;
+  border:1.5px solid rgba(240,237,230,0.25);
+  border-radius:50%;
+  display:flex;align-items:center;justify-content:center;
+  flex-shrink:0;
+  transition:all 0.2s;
+}
+.opt-card.selected .opt-num{border-color:#f5c842;background:#f5c842;color:var(--ink);}
+.opt-text{flex:1;font-size:0.88rem;font-weight:500;}
+.opt-pct{
+  font-family:'JetBrains Mono',monospace;
+  font-size:0.72rem;
+  color:rgba(240,237,230,0.5);
+}
+.opt-card.selected .opt-pct{color:#f5c842;}
+
+.vote-action{
+  margin-top:6px;
+  display:flex;align-items:center;gap:12px;
+}
+.btn-vote{
+  background:#f5c842;color:var(--ink);
+  border:none;padding:12px 28px;
+  font-family:'JetBrains Mono',monospace;
+  font-weight:700;font-size:0.78rem;letter-spacing:0.04em;
+  text-transform:uppercase;cursor:pointer;
+  border-radius:8px;transition:all 0.2s;
+}
+.btn-vote:hover{background:#fff;transform:translateY(-2px);box-shadow:0 8px 24px rgba(0,0,0,0.3);}
+.vote-hint{font-size:0.72rem;color:rgba(240,237,230,0.4);font-family:'JetBrains Mono',monospace;}
+
+/* ===== 2-COLUMN SECTION ===== */
+.three-col{
+  display:grid;
+  grid-template-columns:1fr 1fr;
+  border-top:2px solid var(--ink);
+}
+.col-block{
+  padding:32px 36px;
+  border-right:2px solid var(--ink);
+}
+.col-block:last-child{border-right:none;}
+.col-title{
+  font-family:'JetBrains Mono',monospace;
+  font-size:0.62rem;
+  letter-spacing:0.14em;
+  text-transform:uppercase;
+  color:var(--muted);
+  margin-bottom:20px;
+  padding-bottom:12px;
+  border-bottom:1.5px solid var(--border);
+  display:flex;align-items:center;gap:8px;
+}
+.col-title::before{
+  content:'';width:6px;height:6px;
+  background:var(--ink);border-radius:50%;
+  display:inline-block;
+}
+
+/* WALLETS column */
+.wallet-grid{
+  display:grid;grid-template-columns:1fr 1fr;
+  gap:8px;
+}
+.w-tile{
+  border:1.5px solid var(--border);
+  border-radius:10px;
+  padding:14px;
+  cursor:pointer;
+  transition:all 0.18s;
+  text-align:center;
+  background:var(--cream);
+}
+.w-tile:hover{border-color:var(--ink);background:var(--ink);color:var(--paper);}
+.w-tile:hover .w-sub{color:rgba(240,237,230,0.5);}
+.w-emoji{font-size:1.5rem;margin-bottom:6px;}
+.w-name{font-weight:600;font-size:0.82rem;}
+.w-sub{font-size:0.67rem;color:var(--muted);margin-top:2px;transition:color 0.18s;}
+
+/* CONTRACT column */
+.contract-rows{display:flex;flex-direction:column;gap:0;}
+.c-row{
+  display:flex;justify-content:space-between;align-items:center;
+  padding:11px 0;
+  border-bottom:1px solid var(--border);
+  font-size:0.78rem;
+}
+.c-row:last-child{border-bottom:none;}
+.c-key{color:var(--muted);}
+.c-val{
+  font-family:'JetBrains Mono',monospace;
+  font-size:0.72rem;
+  font-weight:500;
+}
+.c-val.link{color:var(--teal);cursor:pointer;text-decoration:underline;}
+.c-val.green{color:var(--teal);}
+.c-val.count{
+  font-family:'Playfair Display',serif;
+  font-size:1.6rem;font-weight:900;
+  color:var(--red);
+}
+
+/* ===== BOTTOM SECTION: results + feed side by side ===== */
+.bottom{
+  display:grid;
+  grid-template-columns:1fr 1fr;
+  border-top:2px solid var(--ink);
+}
+.bottom-block{
+  padding:32px 36px;
+}
+.bottom-block:first-child{border-right:2px solid var(--ink);}
+
+.section-title{
+  font-family:'Playfair Display',serif;
+  font-size:1.2rem;font-weight:700;
+  margin-bottom:20px;
+  display:flex;align-items:center;gap:10px;
+}
+.section-title small{
+  font-family:'JetBrains Mono',monospace;
+  font-size:0.6rem;
+  font-weight:400;
+  color:var(--muted);
+  letter-spacing:0.1em;
+  text-transform:uppercase;
+  font-style:normal;
+}
+
+/* RESULTS */
+.res-item{margin-bottom:20px;}
+.res-item:last-child{margin-bottom:0;}
+.res-header{display:flex;justify-content:space-between;margin-bottom:8px;align-items:baseline;}
+.res-name{font-weight:600;font-size:0.88rem;display:flex;align-items:center;gap:7px;}
+.res-num{
+  font-family:'Playfair Display',serif;
+  font-size:1.4rem;font-weight:900;
+}
+.res-num.r0{color:var(--red);}
+.res-num.r1{color:var(--teal);}
+.res-num.r2{color:var(--amber);}
+.track{height:10px;background:var(--border);border-radius:99px;overflow:hidden;}
+.fill{
+  height:100%;border-radius:99px;
+  animation:fill-anim 1.2s cubic-bezier(.34,1.56,.64,1) forwards;
+}
+@keyframes fill-anim{from{width:0%!important}}
+.f0{background:var(--red);}
+.f1{background:var(--teal);}
+.f2{background:var(--amber);}
+
+/* TX list */
+.tx-mini{display:flex;flex-direction:column;gap:8px;margin-bottom:20px;}
+.tx-row{
+  display:flex;align-items:center;gap:10px;
+  padding:10px 12px;
+  background:var(--cream);
+  border-radius:8px;
+  border:1px solid var(--border);
+  font-size:0.76rem;
+}
+.tx-dot{
+  width:8px;height:8px;border-radius:50%;flex-shrink:0;
+}
+.tx-dot.ok{background:var(--teal);}
+.tx-dot.pend{background:var(--amber);animation:pulse 1s infinite;}
+.tx-dot.fail{background:var(--red);}
+.tx-fn{font-family:'JetBrains Mono',monospace;font-weight:500;flex:1;}
+.tx-hash-s{font-family:'JetBrains Mono',monospace;font-size:0.65rem;color:var(--teal);cursor:pointer;}
+.tx-age{font-size:0.67rem;color:var(--muted);}
+.tx-st{
+  font-family:'JetBrains Mono',monospace;
+  font-size:0.62rem;letter-spacing:0.06em;
+  padding:3px 8px;border-radius:4px;text-transform:uppercase;
+}
+.tx-st.ok{background:#e8f7f5;color:var(--teal);}
+.tx-st.pend{background:#fdf8f0;color:var(--amber);}
+.tx-st.fail{background:#fdf3f2;color:var(--red);}
+
+/* FEED */
+.feed-scroll{
+  max-height:340px;overflow-y:auto;
+  scrollbar-width:thin;
+  scrollbar-color:var(--border) transparent;
+}
+.feed-row{
+  display:flex;align-items:baseline;gap:10px;
+  padding:9px 0;
+  border-bottom:1px dashed var(--border);
+  font-size:0.76rem;
+  animation:fadein 0.3s ease;
+}
+@keyframes fadein{from{opacity:0;transform:translateY(-5px)}}
+.feed-row:last-child{border-bottom:none;}
+.f-time{
+  font-family:'JetBrains Mono',monospace;
+  font-size:0.65rem;color:var(--muted);
+  min-width:52px;flex-shrink:0;
+}
+.f-badge{
+  font-family:'JetBrains Mono',monospace;
+  font-size:0.58rem;letter-spacing:0.06em;
+  background:var(--ink);color:var(--paper);
+  padding:2px 6px;border-radius:3px;flex-shrink:0;
+}
+.f-txt{line-height:1.4;color:var(--ink);}
+.f-addr{font-family:'JetBrains Mono',monospace;color:var(--teal);font-size:0.7rem;}
+
+/* TOAST */
+.toasts{
+  position:fixed;bottom:24px;right:24px;
+  display:flex;flex-direction:column-reverse;gap:8px;
+  z-index:9999;
+}
+.toast{
+  padding:12px 18px;border-radius:8px;
+  font-family:'JetBrains Mono',monospace;
+  font-size:0.75rem;letter-spacing:0.02em;
+  max-width:290px;
+  animation:toastin 0.25s ease;
+  box-shadow:0 6px 24px rgba(0,0,0,0.12);
+}
+@keyframes toastin{from{opacity:0;transform:translateY(8px)}}
+.toast.info{background:var(--ink);color:var(--paper);}
+.toast.ok{background:var(--teal);color:#fff;}
+.toast.err{background:var(--red);color:#fff;}
+
+/* FOOTER */
+footer{
+  border-top:2px solid var(--ink);
+  padding:16px 48px;
+  display:flex;justify-content:space-between;align-items:center;
+  font-family:'JetBrains Mono',monospace;
+  font-size:0.65rem;
+  color:var(--muted);
+  background:var(--cream);
+}
+</style>
+</head>
+<body>
+
+<!-- TICKER -->
+<div class="ticker-wrap">
+  <div class="ticker-track">
+    <span>STELLAR NETWORK</span>
+    <span class="highlight">✦ LIVE POLL — <span id="tickerVotes">255</span> VOTES CAST</span>
+    <span>CONTRACT: CCYUD...7K2M</span>
+    <span class="highlight" id="tickerDays">8 DAYS REMAINING</span>
+    <span>HORIZON-TESTNET CONNECTED</span>
+    <span id="tickerLatest">LATEST: option=2 · voter=GTML...</span>
+    <span class="highlight">cast_vote() · SUCCESS</span>
+    <span>STELLAR NETWORK</span>
+    <span class="highlight">✦ LIVE POLL — <span id="tickerVotes2">255</span> VOTES CAST</span>
+    <span>CONTRACT: CCYUD...7K2M</span>
+    <span class="highlight" id="tickerDays2">8 DAYS REMAINING</span>
+    <span>HORIZON-TESTNET CONNECTED</span>
+    <span id="tickerLatest2">LATEST: option=2 · voter=GTML...</span>
+    <span class="highlight">cast_vote() · SUCCESS</span>
+  </div>
+</div>
+
+<!-- NAV -->
+<nav>
+  <div class="logo">Star<em>Vote</em><span class="logo-sup">TESTNET</span></div>
+  <div class="nav-center">
+    <div class="pill active">Governance</div>
+    <div class="pill">Explorer</div>
+    <div class="pill red-pill" id="connectedPill">● Not connected</div>
+  </div>
+  <div class="nav-right">
+    <div class="net-dot"></div>
+    <span style="font-size:0.7rem;color:var(--muted)">Stellar Testnet</span>
+    <button id="walletBtn" onclick="openWalletModal()">Connect Wallet</button>
+  </div>
+</nav>
+
+<!-- HERO — full width -->
+<section class="hero">
+  <div class="hero-left">
+    <div class="hero-kicker"><div class="live-dot"></div> Live Poll · Stellar Governance</div>
+    <h1 class="hero-title">What should the Stellar community prioritize in 2025?</h1>
+    <div class="hero-meta">
+      <span><strong id="voteMeta">255</strong> votes cast</span>
+      <span><strong id="daysMeta">8</strong> days left</span>
+      <span><strong>Contract</strong> deployed</span>
+    </div>
+  </div>
+  <div class="hero-vote">
+    <div class="hero-vote-label">Cast your on-chain vote</div>
+    <div class="opt-card" onclick="pick(0,this)" id="hopt0">
+      <div class="opt-num">01</div>
+      <span class="opt-text">⚡ DeFi & DEX improvements</span>
+      <span class="opt-pct" id="hpct0">44%</span>
+    </div>
+    <div class="opt-card" onclick="pick(1,this)" id="hopt1">
+      <div class="opt-num">02</div>
+      <span class="opt-text">🌐 Cross-chain bridges</span>
+      <span class="opt-pct" id="hpct1">31%</span>
+    </div>
+    <div class="opt-card" onclick="pick(2,this)" id="hopt2">
+      <div class="opt-num">03</div>
+      <span class="opt-text">📱 Mobile wallet UX</span>
+      <span class="opt-pct" id="hpct2">25%</span>
+    </div>
+    <div class="vote-action">
+      <button class="btn-vote" onclick="castVote()" id="voteBtn">Submit Vote →</button>
+      <span class="vote-hint" id="vhint">Connect wallet first</span>
+    </div>
+  </div>
+</section>
+
+<!-- 3 COLUMNS -->
+<div class="three-col">
+
+  <!-- WALLETS -->
+  <div class="col-block">
+    <div class="col-title">Connect Wallet</div>
+    <div class="wallet-grid">
+      <div class="w-tile" onclick="connectW('Freighter')">
+        <div class="w-emoji">🦊</div>
+        <div class="w-name">Freighter</div>
+        <div class="w-sub">Most popular</div>
+      </div>
+      <div class="w-tile" onclick="connectW('xBull')">
+        <div class="w-emoji">🐂</div>
+        <div class="w-name">xBull</div>
+        <div class="w-sub">Advanced</div>
+      </div>
+      <div class="w-tile" onclick="connectW('Rabet')">
+        <div class="w-emoji">💎</div>
+        <div class="w-name">Rabet</div>
+        <div class="w-sub">Extension</div>
+      </div>
+      <div class="w-tile" onclick="connectW('Lobstr')">
+        <div class="w-emoji">🦞</div>
+        <div class="w-name">Lobstr</div>
+        <div class="w-sub">Mobile</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- CONTRACT -->
+  <div class="col-block">
+    <div class="col-title">Contract Info</div>
+    <div class="contract-rows">
+      <div class="c-row">
+        <span class="c-key">Contract ID</span>
+        <span class="c-val link">CCYUD...7K2M ↗</span>
+      </div>
+      <div class="c-row">
+        <span class="c-key">Network</span>
+        <span class="c-val green">Stellar Testnet</span>
+      </div>
+      <div class="c-row">
+        <span class="c-key">Horizon URL</span>
+        <span class="c-val link">horizon-testnet ↗</span>
+      </div>
+      <div class="c-row">
+        <span class="c-key">Function</span>
+        <span class="c-val">cast_vote()</span>
+      </div>
+      <div class="c-row">
+        <span class="c-key">Total Votes</span>
+        <span class="c-val count" id="voteCount">255</span>
+      </div>
+    </div>
+  </div>
+
+</div>
+
+<!-- BOTTOM: results + feed -->
+<div class="bottom">
+
+  <!-- LEFT: results + tx -->
+  <div class="bottom-block">
+    <div class="section-title">Live Results <small>on-chain tally</small></div>
+    <div class="res-item">
+      <div class="res-header">
+        <span class="res-name">⚡ DeFi & DEX improvements</span>
+        <span class="res-num r0" id="res0">44%</span>
+      </div>
+      <div class="track"><div class="fill f0" id="bar0" style="width:44%"></div></div>
+    </div>
+    <div class="res-item">
+      <div class="res-header">
+        <span class="res-name">🌐 Cross-chain bridges</span>
+        <span class="res-num r1" id="res1">31%</span>
+      </div>
+      <div class="track"><div class="fill f1" id="bar1" style="width:31%"></div></div>
+    </div>
+    <div class="res-item" style="margin-bottom:32px;">
+      <div class="res-header">
+        <span class="res-name">📱 Mobile wallet UX</span>
+        <span class="res-num r2" id="res2">25%</span>
+      </div>
+      <div class="track"><div class="fill f2" id="bar2" style="width:25%"></div></div>
+    </div>
+
+    <div class="section-title">Transaction Status <small>recent activity</small></div>
+    <div class="tx-mini" id="txList">
+      <div class="tx-row">
+        <div class="tx-dot ok"></div>
+        <span class="tx-fn">cast_vote(option: 0)</span>
+        <span class="tx-hash-s">a7f3...9k2m ↗</span>
+        <span class="tx-age">2m ago</span>
+        <span class="tx-st ok">Success</span>
+      </div>
+      <div class="tx-row">
+        <div class="tx-dot ok"></div>
+        <span class="tx-fn">cast_vote(option: 2)</span>
+        <span class="tx-hash-s">b9e4...3x8n ↗</span>
+        <span class="tx-age">5m ago</span>
+        <span class="tx-st ok">Success</span>
+      </div>
+    </div>
+  </div>
+
+  <!-- RIGHT: feed -->
+  <div class="bottom-block">
+    <div class="section-title">Live Event Feed <small>real-time stream</small></div>
+    <div class="feed-scroll">
+      <div id="feedList">
+        <div class="feed-row"><span class="f-time">11:34:34</span><span class="f-badge">VOTE</span><span class="f-txt">option=2 · voter=<span class="f-addr">GTMLHVF...</span></span></div>
+        <div class="feed-row"><span class="f-time">11:34:15</span><span class="f-badge">VOTE</span><span class="f-txt">option=1 · voter=<span class="f-addr">GHVY5UE...</span></span></div>
+        <div class="feed-row"><span class="f-time">11:32:20</span><span class="f-badge">VOTE</span><span class="f-txt">option=2 · voter=<span class="f-addr">G2FCRWB...</span></span></div>
+        <div class="feed-row"><span class="f-time">11:32:08</span><span class="f-badge">VOTE</span><span class="f-txt">option=2 · voter=<span class="f-addr">GA0ESSI...</span></span></div>
+        <div class="feed-row"><span class="f-time">11:31:56</span><span class="f-badge">VOTE</span><span class="f-txt">option=0 · voter=<span class="f-addr">G2BCUXE...</span></span></div>
+        <div class="feed-row"><span class="f-time">11:30:44</span><span class="f-badge">VOTE</span><span class="f-txt">option=1 · voter=<span class="f-addr">GABCDEF...</span></span></div>
+      </div>
+    </div>
+  </div>
+
+</div>
+
+<footer>
+  <span>StarVote · Stellar Governance Platform</span>
+  <span>Network: Stellar Testnet · horizon-testnet.stellar.org</span>
+  <span id="footerConn">Wallet: Not connected</span>
+</footer>
+
+<div class="toasts" id="toasts"></div>
+
+<script>
+let connected=false, wallet='', chosen=null, totalVotes=255;
+const votes=[112,79,64];
+const errs=[
+  {msg:'🔍 Wallet not found. Please install {w}.', cls:'err'},
+  {msg:'✕ Transaction rejected by user.', cls:'err'},
+  {msg:'○ Insufficient XLM balance.', cls:'err'},
+];
+
+function toast(msg,cls='info',dur=3000){
+  const a=document.getElementById('toasts');
+  const t=document.createElement('div');
+  t.className=`toast ${cls}`;t.textContent=msg;
+  a.appendChild(t);
+  setTimeout(()=>t.remove(),dur);
+}
+
+function connectW(name){
+  toast(`Connecting to ${name}...`,'info',900);
+  setTimeout(()=>{
+    const r=Math.random();
+    if(r<0.2){toast(errs[0].msg.replace('{w}',name),'err');return;}
+    if(r<0.3){toast(errs[1].msg,'err');return;}
+    connected=true;wallet=name;
+    document.getElementById('connectedPill').textContent='● '+name;
+    document.getElementById('connectedPill').style.borderColor='var(--teal)';
+    document.getElementById('connectedPill').style.color='var(--teal)';
+    document.getElementById('walletBtn').textContent=name+' ✓';
+    document.getElementById('vhint').textContent=name+' ready';
+    document.getElementById('footerConn').textContent='Wallet: '+name;
+    toast('✓ '+name+' connected!','ok');
+    addFeed('wallet','Wallet connected '+name);
+  },700);
+}
+
+function pick(i,el){
+  if(!connected)return;
+  document.querySelectorAll('.opt-card').forEach(o=>o.classList.remove('selected'));
+  el.classList.add('selected');chosen=i;
+  document.getElementById('vhint').textContent='Ready to vote';
+}
+
+function castVote(){
+  if(!connected){toast('Connect a wallet first.','err');return;}
+  if(chosen===null){toast('Select an option.','err');return;}
+  if(Math.random()<0.15){toast(errs[2].msg,'err');return;}
+  
+  document.getElementById('voteBtn').disabled=true;
+  document.getElementById('voteBtn').textContent='Broadcasting...';
+  
+  toast('📡 Broadcasting...','info',1500);
+  const h=Math.random().toString(36).slice(2,8)+'...'+Math.random().toString(36).slice(2,6);
+  addTx(h,'cast_vote(option: '+chosen+')', 'pend');
+  
+  setTimeout(()=>{
+    resolveTx(h);
+    votes[chosen]++;
+    totalVotes++;
+    updateResults();
+    addFeed('vote','option='+chosen+' · voter=G'+Math.random().toString(36).slice(2,8).toUpperCase()+'...');
+    document.getElementById('vhint').textContent='✓ Vote cast on-chain!';
+    document.getElementById('voteBtn').textContent='Vote cast ✓';
+    document.getElementById('voteBtn').style.backgroundColor='var(--teal)';
+    toast(`✓ Vote for option ${chosen} received!`,'ok',4000);
+  },1800);
+}
+
+let txMap={};
+function addTx(h,fn,st){
+  const list=document.getElementById('txList');
+  const row=document.createElement('div');
+  row.className='tx-row';row.id='tx-'+h;
+  const statusClass=st==='pend'?'background:var(--amber);':'';
+  const dotClass=st==='pend'?'pend':'ok';
+  const stText=st==='pend'?'PENDING':'SUCCESS';
+  const stBg=st==='pend'?'#fdf8f0':'#e8f7f5';
+  const stColor=st==='pend'?'var(--amber)':'var(--teal)';
+  row.innerHTML=`<div class="tx-dot ${dotClass}"></div><span class="tx-fn">${fn}</span><span class="tx-hash-s">${h} ↗</span><span class="tx-age">now</span><span class="tx-st" style="background:${stBg};color:${stColor}">${stText}</span>`;
+  list.prepend(row);
+  txMap[h]={fn,st};
+}
+
+function resolveTx(h){
+  const r=document.getElementById('tx-'+h);
+  if(!r)return;
+  r.querySelector('.tx-dot').className='tx-dot ok';
+  const st=r.querySelector('.tx-st');
+  st.textContent='SUCCESS';
+  st.style.background='#e8f7f5';
+  st.style.color='var(--teal)';
+}
+
+function updateResults(){
+  const tot=votes.reduce((a,b)=>a+b,0);
+  votes.forEach((v,i)=>{
+    const pct=Math.round((v/tot)*100);
+    document.getElementById('hpct'+i).textContent=pct+'%';
+    document.getElementById('res'+i).textContent=pct+'%';
+    document.getElementById('bar'+i).style.width=pct+'%';
+  });
+  document.getElementById('voteMeta').textContent=tot;
+  document.getElementById('voteCount').textContent=tot;
+  document.getElementById('tickerVotes').textContent=tot;
+  document.getElementById('tickerVotes2').textContent=tot;
+}
+
+const addrs=['GTML...HVF','GHVY...5UE','G2FC...RWB','GA0E...SSI','G2BC...UXE','GABX...3ZK'];
+function addFeed(type,msg){
+  const list=document.getElementById('feedList');
+  const now=new Date();
+  const t=`${now.getHours().toString().padStart(2,'0')}:${now.getMinutes().toString().padStart(2,'0')}:${now.getSeconds().toString().padStart(2,'0')}`;
+  const row=document.createElement('div');
+  row.className='feed-row';
+  row.innerHTML=`<span class="f-time">${t}</span><span class="f-badge">${type.toUpperCase()}</span><span class="f-txt">${msg}</span>`;
+  list.prepend(row);
+  if(list.children.length>15)list.lastElementChild.remove();
+}
+
+setInterval(()=>{
+  const opt=Math.floor(Math.random()*3);
+  const addr=addrs[Math.floor(Math.random()*addrs.length)];
+  addFeed('VOTE','option='+opt+' · voter='+addr);
+},6000);
+
+function openWalletModal(){
+  const btn=document.getElementById('walletBtn');
+  if(!connected){
+    toast('Select a wallet option from the left panel','info');
+  }else{
+    const confirmed=confirm('Disconnect '+wallet+'?');
+    if(confirmed){
+      connected=false;walletName='';chosen=null;
+      document.getElementById('connectedPill').textContent='● Not connected';
+      document.getElementById('connectedPill').style.color='var(--red)';
+      document.getElementById('walletBtn').textContent='Connect Wallet';
+      document.getElementById('vhint').textContent='Connect wallet first';
+      document.getElementById('footerConn').textContent='Wallet: Not connected';
+      addFeed('wallet','Wallet disconnected');
+    }
+  }
+}
+</script>
+</body>
+</html>
