@@ -5,7 +5,7 @@ A fully on-chain live polling dApp built with **Soroban** smart contracts on **S
 ---
 
 ## 🔗 Live Demo
-> https://orange-belt-deploy.vercel.app
+> https://orange-belt-deploy-ra74.vercel.app
 
 ## 📹 Demo Video
 > https://youtu.be/mpj_mVS9BTk
