@@ -1,0 +1,151 @@
+# name: StarVote CI/CD
+
+# on:
+#   push:
+#     branches: [main]
+#   pull_request:
+#     branches: [main]
+
+# jobs:
+#   test-frontend:
+#     name: Build & Type Check Frontend
+#     runs-on: ubuntu-latest
+#     steps:
+#       - uses: actions/checkout@v4
+
+#       - name: Setup Node.js 20
+#         uses: actions/setup-node@v4
+#         with:
+#           node-version: '20'
+#           cache: 'npm'
+#           cache-dependency-path: frontend/package-lock.json
+
+#       - name: Install dependencies
+#         run: cd frontend && npm ci
+
+#       - name: TypeScript type check
+#         run: cd frontend && npx tsc --noEmit
+
+#       - name: Build Next.js
+#         run: cd frontend && npm run build
+#         env:
+#           NEXT_PUBLIC_CONTRACT_ID: ${{ secrets.NEXT_PUBLIC_CONTRACT_ID }}
+#           NEXT_PUBLIC_TOKEN_CONTRACT_ID: ${{ secrets.NEXT_PUBLIC_TOKEN_CONTRACT_ID }}
+
+#   test-contracts:
+#     name: Build Soroban Contracts
+#     runs-on: ubuntu-latest
+#     steps:
+#       - uses: actions/checkout@v4
+
+#       - name: Install Rust
+#         uses: dtolnay/rust-toolchain@stable
+#         with:
+#           targets: wasm32-unknown-unknown
+
+#       - name: Cache Rust
+#         uses: actions/cache@v4
+#         with:
+#           path: |
+#             ~/.cargo/registry
+#             ~/.cargo/git
+#             target
+#           key: ${{ runner.os }}-cargo-${{ hashFiles('**/Cargo.lock') }}
+
+#       - name: Build star-token contract
+#         run: cargo build --target wasm32-unknown-unknown --release --manifest-path contracts/star-token/Cargo.toml
+
+#       - name: Build hello-world contract
+#         run: cargo build --target wasm32-unknown-unknown --release --manifest-path contracts/hello-world/Cargo.toml
+
+#   deploy:
+#     name: Deploy to Vercel
+#     needs: [test-frontend, test-contracts]
+#     runs-on: ubuntu-latest
+#     if: github.ref == 'refs/heads/main' && github.event_name == 'push'
+#     steps:
+#       - uses: actions/checkout@v4
+#       - uses: actions/setup-node@v4
+#         with:
+#           node-version: '20'
+#       - name: Deploy
+#         run: npx vercel --prod --cwd frontend --token=${{ secrets.VERCEL_TOKEN }} --yes
+
+
+
+name: StarVote CI/CD
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+jobs:
+  test-frontend:
+    name: Build and type check frontend
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+          cache-dependency-path: frontend/package-lock.json
+
+      - name: Install dependencies
+        run: cd frontend && npm ci
+
+      - name: TypeScript check
+        run: cd frontend && npx tsc --noEmit
+
+      - name: Build Next.js
+        run: cd frontend && npm run build
+        env:
+          NEXT_PUBLIC_CONTRACT_ID: ${{ secrets.NEXT_PUBLIC_CONTRACT_ID }}
+          NEXT_PUBLIC_TOKEN_CONTRACT_ID: ${{ secrets.NEXT_PUBLIC_TOKEN_CONTRACT_ID }}
+
+  test-contracts:
+    name: Build Soroban contracts
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install Rust
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: wasm32-unknown-unknown
+
+      - name: Cache Rust
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.cargo/registry
+            ~/.cargo/git
+            target
+          key: ${{ runner.os }}-cargo-${{ hashFiles('**/Cargo.lock') }}
+
+      - name: Build star-token
+        run: cargo build --target wasm32-unknown-unknown --release --manifest-path contracts/star-token/Cargo.toml
+
+      - name: Build hello-world
+        run: cargo build --target wasm32-unknown-unknown --release --manifest-path contracts/hello-world/Cargo.toml
+
+  deploy:
+    name: Deploy to Vercel
+    needs: [test-frontend, test-contracts]
+    runs-on: ubuntu-latest
+    if: github.ref == 'refs/heads/main' && github.event_name == 'push'
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Deploy to Vercel
+        run: npx vercel --prod --cwd frontend --token=${{ secrets.VERCEL_TOKEN }} --yes
+        env:
+          VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
