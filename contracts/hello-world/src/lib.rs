@@ -1,115 +1,97 @@
 #![no_std]
-use soroban_sdk::{contract, contractimpl, contracttype, contracterror, Env, Address, Vec, String, Symbol};
+use soroban_sdk::{
+    contract, contractimpl, contracttype, Address, Env, String, Vec,
+    Symbol, symbol_short,
+};
 
-// ── Errors ────────────────────────────────────────────────────────────────────
-
-#[contracterror]
-#[derive(Copy, Clone, Debug, Eq, PartialEq, PartialOrd, Ord)]
-#[repr(u32)]
-pub enum PollError {
-    NotInitialized = 1,
-    AlreadyVoted   = 2,
-    InvalidOption  = 3,
-    AlreadyInit    = 4,
+mod star_token {
+    soroban_sdk::contractimport!(
+        file = "../../target/wasm32-unknown-unknown/release/star_token.wasm"
+    );
 }
 
-// ── Storage keys ──────────────────────────────────────────────────────────────
-
-const KEY_RESULTS:  &str = "results";
-const KEY_OPTIONS:  &str = "options";
-const KEY_QUESTION: &str = "question";
-const KEY_INIT:     &str = "initialized";
-
-fn voted_key(env: &Env, voter: &Address) -> (Symbol, Address) {
-    (Symbol::new(env, "voted"), voter.clone())
+#[contracttype]
+pub enum DataKey {
+    Question,
+    Options,
+    Results,
+    Voted(Address),
+    TokenContract,
 }
-
-// ── Contract ──────────────────────────────────────────────────────────────────
 
 #[contract]
-pub struct PollContract;
+pub struct StarVote;
 
 #[contractimpl]
-impl PollContract {
-
-    /// Initialize the poll once with a question and option labels.
-    pub fn initialize(env: Env, question: String, options: Vec<String>) -> Result<(), PollError> {
-        if env.storage().persistent().has(&Symbol::new(&env, KEY_INIT)) {
-            return Err(PollError::AlreadyInit);
-        }
-
-        let mut results: Vec<u32> = Vec::new(&env);
-        for _ in 0..options.len() {
-            results.push_back(0u32);
-        }
-
-        env.storage().persistent().set(&Symbol::new(&env, KEY_QUESTION), &question);
-        env.storage().persistent().set(&Symbol::new(&env, KEY_OPTIONS),  &options);
-        env.storage().persistent().set(&Symbol::new(&env, KEY_RESULTS),  &results);
-        env.storage().persistent().set(&Symbol::new(&env, KEY_INIT),     &true);
-
-        Ok(())
+impl StarVote {
+    pub fn initialize(
+        env: Env,
+        question: String,
+        options: Vec<String>,
+        token_contract: Address,
+    ) {
+        let results: Vec<u32> = Vec::from_array(&env, [0u32; 4]);
+        env.storage().instance().set(&DataKey::Question, &question);
+        env.storage().instance().set(&DataKey::Options, &options);
+        env.storage().instance().set(&DataKey::Results, &results);
+        // Store token contract address for inter-contract call
+        env.storage().instance().set(&DataKey::TokenContract, &token_contract);
     }
 
-    /// Cast a vote for an option index. Each address may only vote once.
-    pub fn vote(env: Env, option: u32, voter: Address) -> Result<(), PollError> {
+    pub fn vote(env: Env, option_index: u32, voter: Address) {
         voter.require_auth();
 
-        if !env.storage().persistent().has(&Symbol::new(&env, KEY_INIT)) {
-            return Err(PollError::NotInitialized);
+        // Prevent double voting
+        let voted: bool = env.storage().persistent()
+            .get(&DataKey::Voted(voter.clone()))
+            .unwrap_or(false);
+        if voted {
+            panic!("already voted");
         }
 
-        let options: Vec<String> = env.storage().persistent()
-            .get(&Symbol::new(&env, KEY_OPTIONS))
-            .unwrap_or(Vec::new(&env));
+        // Record vote
+        let mut results: Vec<u32> = env.storage().instance()
+            .get(&DataKey::Results).unwrap();
+        let current = results.get(option_index).unwrap();
+        results.set(option_index, current + 1);
+        env.storage().instance().set(&DataKey::Results, &results);
+        env.storage().persistent().set(&DataKey::Voted(voter.clone()), &true);
 
-        if option >= options.len() {
-            return Err(PollError::InvalidOption);
-        }
+        // ── INTER-CONTRACT CALL: mint 10 STAR tokens to voter ──
+        let token_addr: Address = env.storage().instance()
+            .get(&DataKey::TokenContract).unwrap();
+        let token_client = star_token::Client::new(&env, &token_addr);
+        token_client.mint_reward(&voter, &10_i128);
 
-        let vk = voted_key(&env, &voter);
-        if env.storage().persistent().has(&vk) {
-            return Err(PollError::AlreadyVoted);
-        }
-
-        let mut results: Vec<u32> = env.storage().persistent()
-            .get(&Symbol::new(&env, KEY_RESULTS))
-            .unwrap_or(Vec::new(&env));
-
-        let current = results.get(option).unwrap_or(0);
-        results.set(option, current + 1);
-
-        env.storage().persistent().set(&Symbol::new(&env, KEY_RESULTS), &results);
-        env.storage().persistent().set(&vk, &true);
-
-        Ok(())
+        // Emit event for real-time streaming
+        env.events().publish(
+            (symbol_short!("voted"),),
+            (voter, option_index)
+        );
     }
 
-    /// Return vote counts for every option.
-    pub fn get_results(env: Env) -> Vec<u32> {
-        env.storage().persistent()
-            .get(&Symbol::new(&env, KEY_RESULTS))
-            .unwrap_or(Vec::new(&env))
-    }
-
-    /// Return the option labels.
-    pub fn get_options(env: Env) -> Vec<String> {
-        env.storage().persistent()
-            .get(&Symbol::new(&env, KEY_OPTIONS))
-            .unwrap_or(Vec::new(&env))
-    }
-
-    /// Return the poll question.
     pub fn get_question(env: Env) -> String {
-        env.storage().persistent()
-            .get(&Symbol::new(&env, KEY_QUESTION))
-            .unwrap_or(String::from_str(&env, ""))
+        env.storage().instance().get(&DataKey::Question).unwrap()
     }
 
-    /// Check whether an address has already voted.
+    pub fn get_options(env: Env) -> Vec<String> {
+        env.storage().instance().get(&DataKey::Options).unwrap()
+    }
+
+    pub fn get_results(env: Env) -> Vec<u32> {
+        env.storage().instance().get(&DataKey::Results).unwrap()
+    }
+
     pub fn has_voted(env: Env, voter: Address) -> bool {
-        env.storage().persistent().has(&voted_key(&env, &voter))
+        env.storage().persistent()
+            .get(&DataKey::Voted(voter))
+            .unwrap_or(false)
+    }
+
+    pub fn get_token_balance(env: Env, addr: Address) -> i128 {
+        let token_addr: Address = env.storage().instance()
+            .get(&DataKey::TokenContract).unwrap();
+        let token_client = star_token::Client::new(&env, &token_addr);
+        token_client.balance(&addr)
     }
 }
-
-mod test;
