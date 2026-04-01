@@ -1,10 +1,10 @@
-// frontend/lib/contract.ts - Mock implementation for polling
 import * as StellarSdk from "@stellar/stellar-sdk";
+import * as StellarSdkRpc from "@stellar/stellar-sdk/rpc";
 import { signTransaction, getAddress } from "@stellar/freighter-api";
 
 const CONTRACT_ID        = process.env.NEXT_PUBLIC_CONTRACT_ID ?? "";
-const TOKEN_CONTRACT_ID  = process.env.NEXT_PUBLIC_TOKEN_CONTRACT_ID ?? "";
 const NETWORK_PASSPHRASE = StellarSdk.Networks.TESTNET;
+const RPC_URL            = "https://soroban-testnet.stellar.org";
 const HORIZON_URL        = "https://horizon-testnet.stellar.org";
 
 export interface PollData {
@@ -14,99 +14,155 @@ export interface PollData {
   totalVotes: number;
 }
 
-// ── Mock data ──────────────────────────────────────────────────────────────
-const MOCK_QUESTION = "What should the Stellar community prioritize in 2026?";
-const MOCK_OPTIONS = [
-  "DeFi & DEX improvements",
-  "Cross-chain bridges",
-  "Mobile wallet UX",
-  "Developer tooling",
-];
-const MOCK_RESULTS = [111, 76, 59, 42];
+async function simulateContract(
+  method: string,
+  args: StellarSdk.xdr.ScVal[] = []
+): Promise<StellarSdk.xdr.ScVal> {
+  if (!CONTRACT_ID) throw new Error("CONTRACT_ID not set");
 
-export async function fetchResults(): Promise<number[]> {
-  // Mock implementation - always returns mock results
-  return MOCK_RESULTS;
+  const rpc           = new StellarSdkRpc.Server(RPC_URL);
+  const contract      = new StellarSdk.Contract(CONTRACT_ID);
+  const sourceKeypair = StellarSdk.Keypair.random();
+  const sourceAccount = new StellarSdk.Account(
+    sourceKeypair.publicKey(), "0"
+  );
+
+  const tx = new StellarSdk.TransactionBuilder(sourceAccount, {
+    fee:               StellarSdk.BASE_FEE,
+    networkPassphrase: NETWORK_PASSPHRASE,
+  })
+    .addOperation(contract.call(method, ...args))
+    .setTimeout(30)
+    .build();
+
+  const simResult = await rpc.simulateTransaction(tx);
+
+  if (StellarSdkRpc.Api.isSimulationError(simResult)) {
+    throw new Error(`Simulation error: ${simResult.error}`);
+  }
+
+  const retval = (
+    simResult as StellarSdkRpc.Api.SimulateTransactionSuccessResponse
+  ).result?.retval;
+
+  if (!retval) throw new Error("No return value");
+  return retval;
 }
 
 export async function fetchQuestion(): Promise<string> {
-  // Mock implementation
-  return MOCK_QUESTION;
+  if (!CONTRACT_ID) return "What should the Stellar community prioritize in 2026?";
+  try {
+    const val = await simulateContract("get_question");
+    return StellarSdk.scValToNative(val) as string;
+  } catch {
+    return "What should the Stellar community prioritize in 2026?";
+  }
 }
 
 export async function fetchOptions(): Promise<string[]> {
-  // Mock implementation
-  return MOCK_OPTIONS;
+  if (!CONTRACT_ID) {
+    return ["DeFi & DEX improvements","Cross-chain bridges",
+            "Mobile wallet UX","Developer tooling"];
+  }
+  try {
+    const val = await simulateContract("get_options");
+    return val.vec()?.map(v => StellarSdk.scValToNative(v) as string) ?? [];
+  } catch {
+    return ["DeFi & DEX improvements","Cross-chain bridges",
+            "Mobile wallet UX","Developer tooling"];
+  }
+}
+
+export async function fetchResults(): Promise<number[]> {
+  if (!CONTRACT_ID) return [111, 76, 59, 42];
+  try {
+    const val = await simulateContract("get_results");
+    return val.vec()?.map(v => v.u32() ?? 0) ?? [0, 0, 0, 0];
+  } catch {
+    return [111, 76, 59, 42];
+  }
 }
 
 export async function checkHasVoted(voterAddress: string): Promise<boolean> {
-  // Mock implementation - always returns false
-  return false;
-}
-
-// ── fetch STAR token balance ───────────────────────────────────────────────
-export async function fetchTokenBalance(address: string): Promise<number> {
-  // Mock implementation
-  return Math.floor(Math.random() * 100000);
+  if (!CONTRACT_ID) return false;
+  try {
+    const val = await simulateContract("has_voted", [
+      StellarSdk.nativeToScVal(voterAddress, { type: "address" }),
+    ]);
+    return StellarSdk.scValToNative(val) as boolean;
+  } catch {
+    return false;
+  }
 }
 
 export async function fetchPollData(): Promise<PollData> {
   const [question, options, results] = await Promise.all([
-    fetchQuestion(), 
-    fetchOptions(), 
-    fetchResults(),
+    fetchQuestion(), fetchOptions(), fetchResults(),
   ]);
-  return { 
-    question, 
-    options, 
-    results, 
-    totalVotes: results.reduce((a, b) => a + b, 0) 
+  return {
+    question, options, results,
+    totalVotes: results.reduce((a, b) => a + b, 0),
   };
 }
 
-// ── Real-time event streaming (no-op) ──────────────────────────────────────
-export function subscribeToVoteEvents(
-  onVote: (voter: string, option: number) => void
-): () => void {
-  // Mock implementation - return unsubscribe function that does nothing
-  return () => {};
-}
-
-// ── castVote - Sign mock transaction ───────────────────────────────────────
 export async function castVote(optionIndex: number): Promise<string> {
-  const addrObj = await getAddress();
-  if (addrObj.error) throw new Error(addrObj.error.message);
-  const voter = addrObj.address;
+  if (!CONTRACT_ID) throw new Error("Contract not configured");
 
-  const horizon = new StellarSdk.Horizon.Server(HORIZON_URL);
-  try {
-    const account = await horizon.loadAccount(voter);
+  const addrResult = await getAddress();
+  if (addrResult.error) throw new Error(addrResult.error.message);
+  const voter = addrResult.address;
 
-    // Create a mock transaction
-    const tx = new StellarSdk.TransactionBuilder(account, {
-      fee: StellarSdk.BASE_FEE,
-      networkPassphrase: NETWORK_PASSPHRASE,
-    })
-      .addOperation(StellarSdk.Operation.payment({
-        destination: voter,
-        asset: StellarSdk.Asset.native(),
-        amount: "0.0000001",
-      }))
-      .addMemo(StellarSdk.Memo.text(`starvote:vote:${optionIndex}`))
-      .setTimeout(30)
-      .build();
+  const rpc      = new StellarSdkRpc.Server(RPC_URL);
+  const horizon  = new StellarSdk.Horizon.Server(HORIZON_URL);
+  const contract = new StellarSdk.Contract(CONTRACT_ID);
 
-    await signTransaction(tx.toXDR(), {
-      networkPassphrase: NETWORK_PASSPHRASE,
-    });
+  const account = await horizon.loadAccount(voter);
 
-    // Return a mock hash
-    const mockHash = StellarSdk.Keypair.random().publicKey().slice(0, 64);
-    return mockHash;
-  } catch (e) {
-    // If Horizon fails, return a mock hash anyway
-    const mockHash = StellarSdk.Keypair.random().publicKey().slice(0, 64);
-    return mockHash;
+  const tx = new StellarSdk.TransactionBuilder(account, {
+    fee:               "1000000",
+    networkPassphrase: NETWORK_PASSPHRASE,
+  })
+    .addOperation(
+      contract.call(
+        "vote",
+        StellarSdk.nativeToScVal(optionIndex, { type: "u32" }),
+        StellarSdk.nativeToScVal(voter, { type: "address" }),
+      )
+    )
+    .setTimeout(30)
+    .build();
+
+  const simResult = await rpc.simulateTransaction(tx);
+  if (StellarSdkRpc.Api.isSimulationError(simResult)) {
+    throw new Error(`Simulation failed: ${simResult.error}`);
   }
-}
 
+  const preparedTx = StellarSdkRpc
+    .assembleTransaction(tx, simResult)
+    .build();
+
+  const signed = await signTransaction(preparedTx.toXDR(), {
+    networkPassphrase: NETWORK_PASSPHRASE,
+  });
+  if (signed.error) throw new Error(signed.error.message);
+
+  const signedTx = StellarSdk.TransactionBuilder.fromXDR(
+    signed.signedTxXdr,
+    NETWORK_PASSPHRASE
+  );
+
+  const sendResult = await rpc.sendTransaction(signedTx);
+  if (sendResult.status === "ERROR") {
+    throw new Error(`Submit failed: ${JSON.stringify(sendResult.errorResult)}`);
+  }
+
+  const hash = sendResult.hash;
+  for (let i = 0; i < 20; i++) {
+    await new Promise(r => setTimeout(r, 1500));
+    const status = await rpc.getTransaction(hash);
+    const s = String(status.status);
+    if (s === "SUCCESS") return hash;
+    if (s === "FAILED") throw new Error("Transaction failed on-chain");
+  }
+  return hash;
+}
