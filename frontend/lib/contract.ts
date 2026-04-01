@@ -166,3 +166,53 @@ export async function castVote(optionIndex: number): Promise<string> {
   }
   return hash;
 }
+// ── fetchTokenBalance ──────────────────────────────────────────────────────
+export async function fetchTokenBalance(address: string): Promise<number> {
+  const TOKEN_CONTRACT_ID = process.env.NEXT_PUBLIC_TOKEN_CONTRACT_ID ?? "";
+  if (!TOKEN_CONTRACT_ID) return 0;
+  try {
+    const val = await simulateContract("balance", [
+      StellarSdk.nativeToScVal(address, { type: "address" }),
+    ]);
+    return Number(StellarSdk.scValToNative(val));
+  } catch {
+    return 0;
+  }
+}
+
+// ── subscribeToVoteEvents ──────────────────────────────────────────────────
+export function subscribeToVoteEvents(
+  onVote: (voter: string, option: number) => void
+): () => void {
+  if (!CONTRACT_ID) return () => {};
+
+  const rpc = new StellarSdkRpc.Server(RPC_URL);
+  let latestLedger = 0;
+  let active = true;
+
+  const poll = async () => {
+    try {
+      const events = await rpc.getEvents({
+        filters: [{
+          type: "contract",
+          contractIds: [CONTRACT_ID],
+        }],
+        ...(latestLedger > 0 ? { startLedger: latestLedger } : {}),
+      } as Parameters<typeof rpc.getEvents>[0]);
+
+      for (const event of (events.events ?? [])) {
+        latestLedger = Math.max(latestLedger, event.ledger + 1);
+        try {
+          const native = StellarSdk.scValToNative(event.value);
+          if (Array.isArray(native) && native.length >= 2) {
+            onVote(String(native[0]), Number(native[1]));
+          }
+        } catch { /* skip malformed */ }
+      }
+    } catch { /* network error — retry */ }
+    if (active) setTimeout(poll, 5000);
+  };
+
+  poll();
+  return () => { active = false; };
+}
